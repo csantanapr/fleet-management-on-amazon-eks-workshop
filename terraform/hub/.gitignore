@@ -11,6 +11,9 @@ gitops-repos/
 # Crash log files
 crash.log
 
+# Ignore any .tfvars files that are generated automatically
+terraform.tfvars
+
 # Exclude all .tfvars files, which might contain sensitive data, such as
 # password, private keys, and other secrets.
 
