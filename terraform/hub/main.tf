@@ -18,7 +18,7 @@ provider "helm" {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
       # This requires the awscli to be installed locally where Terraform is executed
-      args = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", local.region]
+      args = local.k8s_args
     }
   }
 }
@@ -31,9 +31,17 @@ provider "kubernetes" {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
     # This requires the awscli to be installed locally where Terraform is executed
-    args = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", local.region]
+    args = local.k8s_args
   }
 }
+
+
+# append "--role-arn" to local.args if var.k8s_assume_role_arn is set
+locals {
+  default_k8s_args =  ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", local.region]
+  k8s_args = var.k8s_assume_role_arn != "" ? concat(local.default_k8s_args, ["--role-arn", var.k8s_assume_role_arn]) : local.default_k8s_args
+}
+
 
 
 locals {

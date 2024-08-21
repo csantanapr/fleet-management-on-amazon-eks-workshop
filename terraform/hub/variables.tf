@@ -60,3 +60,9 @@ variable "secret_name_git_data_workload" {
   type        = string
   default     = "eks-fleet-workshop/git-data-workload"
 }
+
+variable "k8s_assume_role_arn" {
+  description = "The ARN of the role to assume when interacting with the Kubernetes cluster."
+  type        = string
+  default     = ""
+}
