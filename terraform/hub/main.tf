@@ -18,7 +18,7 @@ provider "helm" {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
       # This requires the awscli to be installed locally where Terraform is executed
-      args = local.k8s_args
+      args = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", local.region]
     }
   }
 }
@@ -31,18 +31,9 @@ provider "kubernetes" {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
     # This requires the awscli to be installed locally where Terraform is executed
-    args = local.k8s_args
+    args = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", local.region]
   }
 }
-
-
-# append "--role-arn" to local.args if var.k8s_assume_role_arn is set
-locals {
-  default_k8s_args =  ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", local.region]
-  k8s_args = var.k8s_assume_role_arn != "" ? concat(local.default_k8s_args, ["--role-arn", var.k8s_assume_role_arn]) : local.default_k8s_args
-}
-
-
 
 locals {
   name            = "fleet-hub-cluster"
@@ -319,7 +310,9 @@ module "eks" {
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
-  enable_cluster_creator_admin_permissions = true
+  enable_cluster_creator_admin_permissions = false
+
+  access_entries = local.access_entries
 
   eks_managed_node_groups = {
     initial = {
@@ -386,6 +379,29 @@ module "eks" {
   tags = local.tags
 }
 
+################################################################################
+# EKS Access Entries to handle workshop participants
+################################################################################
+# For example in workshop studio will pass 3 roles by injecting a terraforms.tfvars file
+# kube_admins_arns = ["participant", "codebuild", "ide"]
+locals {
+  # Generate dynamic access entries for each admin rolelocals
+  admin_access_entries = length(var.kube_admins_arns) > 0 ? var.kube_admins_arns : [data.aws_iam_session_context.current.issuer_arn]
+  access_entries = {
+    for role_arn in local.admin_access_entries : role_arn => {
+      principal_arn = role_arn
+      type          = "STANDARD"
+      policy_associations = {
+        admins = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+  }
+}
 
 ################################################################################
 # Supporting Resources
